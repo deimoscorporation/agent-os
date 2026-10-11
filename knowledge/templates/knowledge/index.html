@@ -1,0 +1,153 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block title %}Conhecimento · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs"><span>Base de conhecimento</span></nav>
+</header>
+
+<div class="page">
+  <div class="page-inner page-inner--narrow">
+    <section class="page-head">
+      <div>
+        <h1 class="page-title">Base de conhecimento</h1>
+        <p class="page-sub">Documentos de <strong>{{ workspace.name }}</strong> que o assistente consulta quando você ativa <span class="inline-code">Base</span> em uma conversa. {% if workspace.is_organization %}Compartilhados com toda a organização.{% endif %}</p>
+      </div>
+    </section>
+
+    <section class="stats stats--three">
+      <div class="stat"><span class="stat-value">{{ documents|length }}</span><span class="stat-label">Documentos</span></div>
+      <div class="stat"><span class="stat-value">{{ chunks }}</span><span class="stat-label">Trechos indexados</span></div>
+      <div class="stat"><span class="stat-value">{{ chars|filesizeformat }}</span><span class="stat-label">De texto extraído</span></div>
+    </section>
+
+    <label class="dropzone" id="dropzone">
+      <input type="file" id="doc-input" multiple hidden accept=".pdf,.docx,.txt,.md,.csv,.tsv,.json,.log,.yaml,.yml,.xml,.html,.rst">
+      <svg><use href="#i-upload"/></svg>
+      <strong>Arraste arquivos ou clique para enviar</strong>
+      <span>{{ extensions }} e outros formatos de texto · até {{ max_mb }} MB cada</span>
+      <ul class="upload-list" id="upload-list"></ul>
+    </label>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Testar a busca</h2>
+        <span class="muted">a mesma usada nas conversas</span>
+      </div>
+      <form class="inline-form" id="search-form">
+        <input class="input" id="search-query" placeholder="Faça uma pergunta sobre os documentos" autocomplete="off" {% if not documents %}disabled{% endif %}>
+        <button class="btn btn-ghost" type="submit" {% if not documents %}disabled{% endif %}><svg><use href="#i-search"/></svg><span>Buscar</span></button>
+      </form>
+      <ul class="results" id="search-results"></ul>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Documentos</h2>
+      {% if documents %}
+      <ul class="people">
+        {% for d in documents %}
+        <li class="person">
+          <span class="avatar"><svg><use href="#i-file"/></svg></span>
+          <div class="person-text">
+            <strong>{{ d.name }}</strong>
+            <span>{{ d.size|filesizeformat }} · {{ d.chunk_count }} trecho{{ d.chunk_count|pluralize }} · enviado em {{ d.created_at|date:"d/m/Y" }}{% if d.uploaded_by %} por {{ d.uploaded_by.get_short_name }}{% endif %}</span>
+          </div>
+          <a class="icon-btn icon-btn--sm" href="{% url 'knowledge:download' d.id %}" title="Baixar original"><svg><use href="#i-download"/></svg></a>
+          {% if d.can_delete %}
+          <button class="icon-btn icon-btn--sm" data-doc-delete="{{ d.id }}" data-name="{{ d.name }}" title="Excluir da base"><svg><use href="#i-trash"/></svg></button>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Nenhum documento ainda. Envie manuais, políticas, relatórios ou qualquer texto que o assistente deva conhecer.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel notice">
+      <svg><use href="#i-alert"/></svg>
+      <p>A busca é por <strong>palavras-chave</strong> (BM25): encontra trechos que compartilham termos com a pergunta. PDFs escaneados (só imagem) não são lidos. Qualquer membro do workspace pode baixar os documentos.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  (() => {
+    const { $, api, toast, modal } = window.Deimos;
+    const dropzone = $("#dropzone");
+    const list = $("#upload-list");
+
+    async function upload(files) {
+      let done = 0;
+      for (const file of files) {
+        const row = document.createElement("li");
+        row.textContent = `${file.name} — enviando…`;
+        list.appendChild(row);
+        const data = new FormData();
+        data.append("file", file);
+        try {
+          const res = await api("/api/knowledge/", { method: "POST", body: data });
+          const doc = await res.json();
+          row.textContent = `${file.name} — ${doc.chunks} trecho${doc.chunks === 1 ? "" : "s"} indexado${doc.chunks === 1 ? "" : "s"}`;
+          row.className = "is-ok";
+          done++;
+        } catch (err) {
+          row.textContent = `${file.name} — ${err.message}`;
+          row.className = "is-error";
+        }
+      }
+      if (done) setTimeout(() => location.reload(), 900);
+    }
+
+    $("#doc-input").addEventListener("change", (e) => { upload([...e.target.files]); e.target.value = ""; });
+    ["dragenter", "dragover"].forEach((type) => dropzone.addEventListener(type, (e) => { e.preventDefault(); dropzone.classList.add("is-over"); }));
+    ["dragleave", "drop"].forEach((type) => dropzone.addEventListener(type, () => dropzone.classList.remove("is-over")));
+    dropzone.addEventListener("drop", (e) => { e.preventDefault(); upload([...e.dataTransfer.files]); });
+
+    $("#search-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const out = $("#search-results");
+      out.innerHTML = "";
+      try {
+        const res = await api(`/api/knowledge/search/?q=${encodeURIComponent($("#search-query").value)}`);
+        const { results } = await res.json();
+        if (!results.length) {
+          out.innerHTML = '<li class="muted">Nenhum trecho com essas palavras.</li>';
+          return;
+        }
+        results.forEach((r) => {
+          const li = document.createElement("li");
+          li.innerHTML = '<p class="result-head"><strong></strong><span class="mono muted"></span></p><p class="result-text"></p>';
+          $("strong", li).textContent = r.document;
+          $("span", li).textContent = `relevância ${r.score}`;
+          $(".result-text", li).textContent = r.excerpt;
+          out.appendChild(li);
+        });
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+
+    document.addEventListener("click", async (e) => {
+      const button = e.target.closest("[data-doc-delete]");
+      if (!button) return;
+      const ok = await modal({ title: "Excluir documento?", text: `“${button.dataset.name}” sai da base e deixa de ser consultado nas conversas.`, ok: "Excluir", danger: true });
+      if (!ok) return;
+      try {
+        await api(`/api/knowledge/${button.dataset.docDelete}/`, { method: "DELETE" });
+        location.reload();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+  })();
+</script>
+{% endblock %}

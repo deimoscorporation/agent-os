@@ -1,0 +1,50 @@
+<section class="panel" id="sharing" data-item="{{ item.id }}">
+  <h2 class="panel-title">Compartilhamento</h2>
+  <p class="share-status"><svg><use href="#i-eye"/></svg>{{ item.sharing_status }}</p>
+
+  {% if last_rejection and not pending and last_rejection.version == item.version %}
+  <div class="share-rejection">
+    <strong>v{{ last_rejection.version }} não foi aprovada</strong>
+    <p>{{ last_rejection.note }}</p>
+    <span class="muted">Ajuste, salve uma nova versão e envie de novo.</span>
+  </div>
+  {% endif %}
+
+  {% if membership.is_admin %}
+  <ul class="share-options">
+    <li class="share-option{% if item.visibility == 'private' and not pending %} is-current{% endif %}">
+      <svg><use href="#i-lock"/></svg>
+      <div><strong>Privado</strong><span>Só este workspace usa.</span></div>
+      {% if item.visibility != 'private' %}<button class="btn btn-sm btn-ghost" type="button" data-share="private">Tornar privado</button>{% endif %}
+    </li>
+
+    {% if workspace.is_organization %}
+    <li class="share-option{% if item.is_org_shared %} is-current{% endif %}">
+      <svg><use href="#i-building"/></svg>
+      <div><strong>Organização</strong><span>Aparece no marketplace privado de {{ workspace.name }}; membros podem instalar nos seus workspaces.</span></div>
+      {% if item.visibility == 'private' %}<button class="btn btn-sm btn-ghost" type="button" data-share="organization">Compartilhar</button>{% endif %}
+    </li>
+    {% endif %}
+
+    <li class="share-option{% if item.is_public %} is-current{% endif %}">
+      <svg><use href="#i-globe"/></svg>
+      <div>
+        <strong>Marketplace público</strong>
+        <span>
+          {% if pending %}v{{ pending.version }} enviada em {{ pending.created_at|date:"d/m/Y" }} — aguardando a equipe de revisão.
+          {% elif item.is_public and item.approved_version == item.version %}v{{ item.approved_version }} está publicada para todos.
+          {% elif item.is_public %}Quem instala recebe a v{{ item.approved_version }}. A v{{ item.version }} precisa de nova revisão.
+          {% else %}Qualquer usuário poderá ver o conteúdo e instalar. Passa por revisão antes de entrar.{% endif %}
+        </span>
+      </div>
+      {% if pending %}
+      <button class="btn btn-sm btn-ghost" type="button" data-submit="cancel">Cancelar envio</button>
+      {% elif not item.is_public or item.approved_version != item.version %}
+      <button class="btn btn-sm btn-primary" type="button" data-submit="send">Enviar v{{ item.version }}</button>
+      {% endif %}
+    </li>
+  </ul>
+  {% else %}
+  <p class="side-text">Só administradores do workspace alteram o compartilhamento.</p>
+  {% endif %}
+</section>

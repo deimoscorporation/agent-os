@@ -1,0 +1,35 @@
+<section class="panel">
+  <h2 class="panel-title">Identidade</h2>
+  <div class="form-grid">
+    <label class="field">
+      <span class="field-label">Nome</span>
+      <input class="input" id="f-name" maxlength="80" autocomplete="off">
+    </label>
+    <label class="field">
+      <span class="field-label">Identificador <small>snake_case, único no workspace</small></span>
+      <input class="input mono" id="f-slug" maxlength="64" autocomplete="off" spellcheck="false">
+    </label>
+    <label class="field field--full">
+      <span class="field-label">Resumo <small>aparece nos cards</small></span>
+      <input class="input" id="f-summary" maxlength="160" autocomplete="off">
+    </label>
+    <label class="field field--full">
+      <span class="field-label">Descrição <small>{{ description_hint }}</small></span>
+      <textarea class="input" id="f-description" rows="3"></textarea>
+    </label>
+    <label class="field">
+      <span class="field-label">Categoria</span>
+      <select class="input" id="f-category">
+        {% for value, label in categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">Tags <small>separadas por vírgula</small></span>
+      <input class="input" id="f-tags" autocomplete="off">
+    </label>
+    <div class="field field--full">
+      <span class="field-label">Ícone</span>
+      <div class="icon-picker" id="f-icon" role="radiogroup" aria-label="Ícone"></div>
+    </div>
+  </div>
+</section>

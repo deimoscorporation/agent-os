@@ -1,0 +1,23 @@
+<details class="menu">
+  <summary class="btn btn-primary{% if size == 'lg' %} btn-lg{% endif %}">
+    <svg><use href="#i-plus"/></svg><span>Criar</span>
+  </summary>
+  <div class="menu-list">
+    <a class="menu-item" href="{% url 'marketplace:item_new' 'tool' %}">
+      <span class="tile tile--tool"><svg><use href="#i-wrench"/></svg></span>
+      <span><strong>Ferramenta</strong><small>Descreva e o sistema gera o código</small></span>
+    </a>
+    <a class="menu-item" href="{% url 'marketplace:item_new' 'agent' %}">
+      <span class="tile tile--agent"><svg><use href="#i-bot"/></svg></span>
+      <span><strong>Agente</strong><small>Instruções, modelo e ferramentas</small></span>
+    </a>
+    <a class="menu-item" href="{% url 'marketplace:item_new' 'workflow' %}">
+      <span class="tile tile--workflow"><svg><use href="#i-workflow"/></svg></span>
+      <span><strong>Workflow</strong><small>Etapas encadeando agentes e ferramentas</small></span>
+    </a>
+    <a class="menu-item" href="{% url 'marketplace:item_new' 'skill' %}">
+      <span class="tile tile--skill"><svg><use href="#i-book"/></svg></span>
+      <span><strong>Skill</strong><small>Conhecimento reutilizável para agentes</small></span>
+    </a>
+  </div>
+</details>

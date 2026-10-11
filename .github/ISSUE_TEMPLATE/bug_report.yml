@@ -1,0 +1,42 @@
+name: Relatar um bug
+description: Algo não funciona como deveria
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por relatar. **Vulnerabilidades de segurança não devem ser abertas aqui** — siga a política em SECURITY.md.
+        Não cole chaves de API, senhas ou dados reais.
+  - type: textarea
+    id: what
+    attributes:
+      label: O que aconteceu
+      description: Descreva o problema e o que você esperava que acontecesse.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Como reproduzir
+      placeholder: |
+        1. Abrir ...
+        2. Clicar em ...
+        3. Ver o erro ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Mensagens de erro
+      description: Erro mostrado na tela, no terminal do servidor ou no console do navegador.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Versão ou commit
+      placeholder: "ex.: main em a1b2c3d"
+  - type: input
+    id: environment
+    attributes:
+      label: Ambiente
+      placeholder: "ex.: Ubuntu 24.04, Python 3.12, Chrome 130"

@@ -1,0 +1,152 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block title %}{% if item %}{{ item.name }}{% else %}Nova ferramenta{% endif %} · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs">
+    <a href="{% url 'marketplace:workspace' %}">Workspace</a><svg><use href="#i-chevron-right"/></svg>
+    <span>{% if item %}{{ item.name }}{% else %}Nova ferramenta{% endif %}</span>
+  </nav>
+</header>
+
+<div class="page" id="tool-page">
+  <div class="page-inner">
+
+    {% if mode == "create" %}
+    <section class="forge" id="stage-describe">
+      <div class="forge-head">
+        <span class="forge-icon"><svg><use href="#i-sparkles"/></svg></span>
+        <h1 class="page-title">Criar ferramenta</h1>
+        <p class="page-sub">Descreva o que a ferramenta deve fazer. O Deimos projeta os parâmetros, escreve o código e audita a segurança — você revisa e instala no workspace.</p>
+      </div>
+
+      <form class="forge-box" id="describe-form">
+        <textarea id="describe-input" rows="3" maxlength="2000" placeholder="Ex.: Uma ferramenta que recebe um CEP e retorna o endereço completo…" aria-label="Descrição da ferramenta"></textarea>
+        <div class="forge-foot">
+          <span class="hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> para gerar</span>
+          <button class="btn btn-primary" type="submit" id="generate-btn" disabled>
+            <svg><use href="#i-sparkles"/></svg><span>Gerar ferramenta</span>
+          </button>
+        </div>
+      </form>
+
+      <div class="examples">
+        <span class="examples-label">Experimente:</span>
+        {% for ex in examples %}
+        <button class="chip" type="button" data-example="{{ ex.prompt }}"><svg><use href="#{{ ex.icon }}"/></svg>{{ ex.label }}</button>
+        {% endfor %}
+      </div>
+
+      <ol class="steps" id="steps" hidden></ol>
+    </section>
+    {% endif %}
+
+    <section class="editor" id="stage-editor"{% if mode == "create" %} hidden{% endif %}>
+      <div class="editor-head">
+        <div class="editor-identity">
+          <span class="tile tile--lg tile--tool" id="ed-icon-preview"><svg><use href="#i-wrench"/></svg></span>
+          <div>
+            <h1 class="page-title" id="ed-title">Ferramenta</h1>
+            <p class="detail-meta" id="ed-subtitle"></p>
+          </div>
+        </div>
+        <div class="editor-actions">
+          {% if mode == "create" %}
+          <button class="btn btn-ghost" type="button" data-editor="discard"><svg><use href="#i-x"/></svg><span>Descartar</span></button>
+          <button class="btn btn-primary" type="button" data-editor="save" disabled><svg><use href="#i-download"/></svg><span>Instalar no workspace</span></button>
+          {% else %}
+          <button class="btn btn-ghost btn-danger-ghost" type="button" data-editor="delete"><svg><use href="#i-trash"/></svg><span>Excluir</span></button>
+          <button class="btn btn-primary" type="button" data-editor="save" disabled><svg><use href="#i-check"/></svg><span>Salvar alterações</span></button>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="editor-grid">
+        <div class="editor-main">
+          {% include "marketplace/_identity.html" with description_hint="para agentes: quando e como usar, o que retorna" %}
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">Parâmetros de entrada</h2>
+              <button class="btn btn-sm btn-ghost" type="button" data-editor="add-param"><svg><use href="#i-plus"/></svg><span>Adicionar</span></button>
+            </div>
+            <div class="params" id="params"></div>
+          </section>
+
+          <section class="panel panel--flush">
+            <div class="code-tabs" role="tablist">
+              <button class="code-tab is-active" type="button" data-tab="code"><svg><use href="#i-code"/></svg>Código</button>
+              <button class="code-tab" type="button" data-tab="schema"><svg><use href="#i-braces"/></svg>JSON Schema</button>
+              <button class="code-tab" type="button" data-tab="definition"><svg><use href="#i-bot"/></svg>Definição para agentes</button>
+              <button class="code-copy code-tab-copy" type="button" data-editor="copy-tab"><svg><use href="#i-copy"/></svg><span>Copiar</span></button>
+            </div>
+            <div class="tab-panel" data-panel="code">
+              <div class="code-editor">
+                <pre class="code-gutter" id="code-gutter" aria-hidden="true">1</pre>
+                <textarea id="f-code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código Python"></textarea>
+              </div>
+            </div>
+            <div class="tab-panel" data-panel="schema" hidden><pre class="code-view"><code id="v-schema" class="language-json"></code></pre></div>
+            <div class="tab-panel" data-panel="definition" hidden><pre class="code-view"><code id="v-definition" class="language-json"></code></pre></div>
+          </section>
+        </div>
+
+        <aside class="editor-side">
+          <section class="panel audit" id="audit">
+            <h2 class="panel-title">Validação e segurança</h2>
+            <div class="audit-status" id="audit-status"><span class="spinner"></span>Validando…</div>
+            <ul class="audit-list" id="audit-list"></ul>
+            <h3 class="audit-sub">Permissões detectadas</h3>
+            <div class="tags" id="audit-perms"></div>
+            <h3 class="audit-sub">Segredos do cofre</h3>
+            <div class="tags" id="audit-secrets"></div>
+            <p class="field-help">No código, leia credenciais com <code class="inline-code">secret("NOME")</code>. O valor vem do <a class="link" href="{% url 'workspaces:secrets' %}">cofre</a> na execução.</p>
+          </section>
+
+          {% if mode == "edit" %}{% include "marketplace/_sharing.html" %}{% endif %}
+
+          <section class="panel">
+            <h2 class="panel-title">Como os agentes usam</h2>
+            <p class="side-text">Instalada e ativa, a ferramenta passa a constar em <code>GET /api/workspace/tools/</code> no formato <em>tool use</em> (aba “Definição para agentes”), pronta para ser oferecida a um agente.</p>
+            <dl class="meta-list">
+              <dt>Runtime</dt><dd class="mono">python3.11</dd>
+              <dt>Entrada</dt><dd class="mono">run(**params)</dd>
+              <dt>Saída</dt><dd class="mono">dict (JSON)</dd>
+            </dl>
+          </section>
+
+          <section class="panel notice">
+            <svg><use href="#i-alert"/></svg>
+            <p>O código ainda <strong>não é executado</strong> pela plataforma. A execução ficará a cargo de um sandbox isolado, respeitando as permissões acima.</p>
+          </section>
+        </aside>
+      </div>
+    </section>
+  </div>
+</div>
+
+<template id="tpl-param">
+  <div class="param">
+    <input class="input mono param-name" placeholder="nome" aria-label="Nome do parâmetro" spellcheck="false">
+    <select class="input param-type" aria-label="Tipo"></select>
+    <label class="param-req" title="Obrigatório"><input type="checkbox" class="param-required"><span>Obrigatório</span></label>
+    <button class="icon-btn icon-btn--sm param-remove" type="button" title="Remover parâmetro"><svg><use href="#i-trash"/></svg></button>
+    <input class="input param-desc" placeholder="Descrição para o agente" aria-label="Descrição">
+    <input class="input mono param-enum" placeholder="valores permitidos, separados por vírgula (opcional)" aria-label="Valores permitidos">
+  </div>
+</template>
+
+{{ editor_config|json_script:"editor-config" }}
+{% endblock %}
+
+{% block page_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="{% static 'marketplace/js/tool-editor.js' %}?v=8"></script>
+<script src="{% static 'marketplace/js/sharing.js' %}?v=8"></script>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block title %}Minha conta · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs"><span>Minha conta</span></nav>
+</header>
+
+<div class="page">
+  <div class="page-inner page-inner--narrow">
+    <section class="account-head">
+      <span class="avatar avatar--lg">{{ user.initials }}</span>
+      <div>
+        <h1 class="page-title">{{ user.full_name }}</h1>
+        <p class="detail-meta">{{ user.email }} <span class="dot">·</span> conta criada em {{ user.date_joined|date:"d/m/Y" }}</p>
+      </div>
+    </section>
+
+    <section class="panel" id="openai">
+      <div class="panel-head">
+        <h2 class="panel-title">Chave da OpenAI</h2>
+        {% if openai %}<span class="perm perm--ok"><svg><use href="#i-lock"/></svg>Configurada</span>
+        {% else %}<span class="perm"><svg><use href="#i-alert"/></svg>Não configurada</span>{% endif %}
+      </div>
+      <p class="side-text">O Deimos Agent OS é open source e usa a <strong>sua própria chave de API</strong>: as respostas do chat e a geração de ferramentas e agentes são cobradas na sua conta OpenAI. A chave é guardada criptografada, usada só nas suas requisições e nunca volta para a tela. <a class="link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Criar uma chave na OpenAI</a>.</p>
+
+      {% if openai %}
+      <dl class="meta-list meta-list--left">
+        <dt>Chave</dt><dd class="mono">••••••••{{ openai.hint }}</dd>
+        <dt>Situação</dt><dd>{% if openai.validated_at %}Validada em {{ openai.validated_at|date:"d/m/Y H:i" }}{% else %}Ainda não validada — será testada no primeiro uso{% endif %}</dd>
+        {% if openai.available_models %}<dt>Modelos</dt><dd>{{ openai.available_models|length }} disponíveis <span class="muted">({{ openai.available_models|slice:":4"|join:", " }}{% if openai.available_models|length > 4 %}…{% endif %})</span></dd>{% endif %}
+      </dl>
+      {% elif workspace_key %}
+      <p class="field-help">Você está usando a chave <span class="inline-code">OPENAI_API_KEY</span> do cofre de {{ workspace.name }}. Cadastre a sua para usar a própria conta.</p>
+      {% elif instance_key %}
+      <p class="field-help">Esta instalação tem uma chave compartilhada configurada pelo administrador. Cadastre a sua para usar a própria conta.</p>
+      {% else %}
+      <p class="field-help">Sem chave, o chat responde em modo de demonstração e a geração usa modelos prontos.</p>
+      {% endif %}
+
+      <form method="post" class="key-form" autocomplete="off" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="form" value="openai">
+        <label class="field">
+          <span class="field-label">{% if openai %}Substituir a chave{% else %}Chave de API{% endif %}</span>
+          <div class="inline-form">
+            <input class="input mono" type="password" name="api_key" placeholder="sk-…" autocomplete="off" spellcheck="false" required>
+            <button class="btn btn-primary" type="submit"><svg><use href="#i-lock"/></svg><span>Validar e salvar</span></button>
+          </div>
+          {% if openai_error %}<span class="field-error">{{ openai_error }}</span>{% endif %}
+        </label>
+      </form>
+      {% if openai %}
+      <form method="post" class="key-remove">
+        {% csrf_token %}
+        <input type="hidden" name="form" value="openai-remove">
+        <button class="btn btn-sm btn-ghost btn-danger-ghost" type="submit">Remover chave</button>
+      </form>
+      {% endif %}
+    </section>
+
+    <form method="post" class="panel" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="form" value="profile">
+      <h2 class="panel-title">Dados pessoais</h2>
+      <div class="form-grid">
+        <label class="field">
+          <span class="field-label">Nome completo</span>
+          <input class="input" type="text" name="{{ profile_form.full_name.html_name }}" value="{{ profile_form.full_name.value|default:'' }}" maxlength="150" autocomplete="name" required>
+          {% for error in profile_form.full_name.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </label>
+        <label class="field">
+          <span class="field-label">E-mail <small>não pode ser alterado</small></span>
+          <input class="input" type="email" value="{{ user.email }}" disabled>
+        </label>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Salvar</button></div>
+    </form>
+
+    <form method="post" class="panel" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="form" value="password">
+      <h2 class="panel-title">Alterar senha</h2>
+      <div class="form-grid">
+        {% for field in password_form %}
+        <label class="field{% if forloop.first %} field--full{% endif %}">
+          <span class="field-label">{{ field.label }}</span>
+          <input class="input" type="password" name="{{ field.html_name }}" autocomplete="{% if forloop.first %}current-password{% else %}new-password{% endif %}" required>
+          {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </label>
+        {% endfor %}
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Alterar senha</button></div>
+    </form>
+
+    <form method="post" action="{% url 'accounts:logout' %}" class="panel panel--row">
+      {% csrf_token %}
+      <div>
+        <h2 class="panel-title">Sair</h2>
+        <p class="side-text">Encerra a sessão neste navegador.</p>
+      </div>
+      <button class="btn btn-ghost" type="submit"><svg><use href="#i-logout"/></svg><span>Sair da conta</span></button>
+    </form>
+  </div>
+</div>
+{% endblock %}

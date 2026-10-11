@@ -1,0 +1,20 @@
+{% extends "accounts/auth_base.html" %}
+
+{% block title %}Entrar · Deimos Agent OS{% endblock %}
+{% block heading %}Entrar{% endblock %}
+{% block subheading %}Acesse seu workspace com e-mail e senha.{% endblock %}
+
+{% block fields %}
+{% include "accounts/_field.html" with field=form.email %}
+{% include "accounts/_field.html" with field=form.password %}
+<label class="auth-check">
+  {{ form.remember }}
+  <span>{{ form.remember.label }}</span>
+</label>
+{% endblock %}
+
+{% block submit %}Entrar{% endblock %}
+
+{% block switch %}
+Ainda não tem conta? <a href="{% url 'accounts:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Criar conta</a>
+{% endblock %}

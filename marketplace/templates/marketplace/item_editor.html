@@ -1,0 +1,173 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block title %}{% if item %}{{ item.name }}{% else %}Novo {{ kind_label|lower }}{% endif %} · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs">
+    <a href="{% url 'marketplace:workspace' %}">Workspace</a><svg><use href="#i-chevron-right"/></svg>
+    <span>{% if item %}{{ item.name }}{% elif kind == "skill" %}Nova skill{% else %}Novo {{ kind_label|lower }}{% endif %}</span>
+  </nav>
+</header>
+
+<div class="page" id="item-page">
+  <div class="page-inner">
+    {% if mode == "create" %}
+    <form class="forge-box forge-box--inline" id="draft-form">
+      <div class="forge-inline-head">
+        <span class="forge-icon"><svg><use href="#i-sparkles"/></svg></span>
+        <div>
+          <strong>Descreva e o Deimos monta o rascunho</strong>
+          <span>{% if kind == "agent" %}Diga o que o agente deve fazer; o sistema escreve as instruções e escolhe ferramentas do seu workspace.{% elif kind == "skill" %}Diga que conhecimento a skill deve ensinar; o sistema estrutura as instruções.{% else %}Diga o que automatizar; o sistema monta as etapas com o que está instalado no workspace.{% endif %}</span>
+        </div>
+      </div>
+      <textarea id="draft-input" rows="2" maxlength="2000" placeholder="{% if kind == "agent" %}Ex.: Um agente que audita a segurança de sites e explica os riscos encontrados{% elif kind == "skill" %}Ex.: Como escrever um relatório de incidente claro para a diretoria{% else %}Ex.: Verificar os headers de um site e gerar um resumo dos riscos{% endif %}" aria-label="Descrição"></textarea>
+      <div class="forge-foot">
+        <span class="hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> para gerar · ou preencha direto abaixo</span>
+        <button class="btn btn-primary" type="submit" id="draft-btn" disabled><svg><use href="#i-sparkles"/></svg><span>Gerar rascunho</span></button>
+      </div>
+    </form>
+    {% endif %}
+
+    <section class="editor" id="stage-editor">
+      <div class="editor-head">
+        <div class="editor-identity">
+          <span class="tile tile--lg tile--{{ kind }}" id="ed-icon-preview"><svg><use href="#i-grid"/></svg></span>
+          <div>
+            <h1 class="page-title" id="ed-title">{{ kind_label }}</h1>
+            <p class="detail-meta" id="ed-subtitle"></p>
+          </div>
+        </div>
+        <div class="editor-actions">
+          {% if mode == "create" %}
+          <a class="btn btn-ghost" href="{% url 'marketplace:workspace' %}"><svg><use href="#i-x"/></svg><span>Cancelar</span></a>
+          <button class="btn btn-primary" type="button" data-editor="save" disabled><svg><use href="#i-download"/></svg><span>Criar e instalar</span></button>
+          {% else %}
+          <button class="btn btn-ghost btn-danger-ghost" type="button" data-editor="delete"><svg><use href="#i-trash"/></svg><span>Excluir</span></button>
+          <button class="btn btn-primary" type="button" data-editor="save" disabled><svg><use href="#i-check"/></svg><span>Salvar alterações</span></button>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="editor-grid">
+        <div class="editor-main">
+          {% if kind == "agent" %}
+            {% include "marketplace/_identity.html" with description_hint="o que o agente faz e quando usá-lo" %}
+
+            <section class="panel">
+              <h2 class="panel-title">Comportamento</h2>
+              <div class="form-grid">
+                <label class="field field--full">
+                  <span class="field-label">Modelo</span>
+                  <select class="input" id="f-model">
+                    {% for m in models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+                  </select>
+                </label>
+                <label class="field field--full">
+                  <span class="field-label">Instruções do agente <small>papel, objetivos, regras e formato das respostas</small></span>
+                  <textarea class="input input--prompt" id="f-system-prompt" rows="10" placeholder="Você é um(a)… Seu objetivo é… Sempre… Nunca…"></textarea>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">Ferramentas que o agente pode usar</h2>
+                <span class="muted" id="tools-count"></span>
+              </div>
+              <div class="pick-list" id="f-tools"></div>
+            </section>
+
+          {% elif kind == "skill" %}
+            {% include "marketplace/_identity.html" with description_hint="que conhecimento a skill adiciona ao agente" %}
+
+            <section class="panel">
+              <h2 class="panel-title">Instruções da skill</h2>
+              <label class="field">
+                <span class="field-label">Conteúdo <small>passo a passo, critérios e exemplos que o agente deve seguir</small></span>
+                <textarea class="input input--prompt" id="f-instructions" rows="14" placeholder="1. Comece por…&#10;2. Em seguida…&#10;3. Entregue no formato…"></textarea>
+              </label>
+            </section>
+
+          {% else %}
+            {% include "marketplace/_identity.html" with description_hint="o que o workflow automatiza de ponta a ponta" %}
+
+            <section class="panel">
+              <h2 class="panel-title">Gatilho</h2>
+              <label class="field">
+                <span class="field-label">O que inicia o workflow</span>
+                <input class="input" id="f-trigger" maxlength="200" placeholder="Ex.: Novo alerta recebido" autocomplete="off">
+              </label>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">Etapas</h2>
+                <button class="btn btn-sm btn-ghost" type="button" data-editor="add-step"><svg><use href="#i-plus"/></svg><span>Adicionar etapa</span></button>
+              </div>
+              <ol class="step-list" id="f-steps"></ol>
+            </section>
+          {% endif %}
+        </div>
+
+        <aside class="editor-side">
+          <section class="panel audit">
+            <h2 class="panel-title">Validação</h2>
+            <div class="audit-status" id="audit-status"><span class="spinner"></span>Validando…</div>
+            <ul class="audit-list" id="audit-list"></ul>
+          </section>
+
+          {% if mode == "edit" %}{% include "marketplace/_sharing.html" %}{% endif %}
+
+          <section class="panel">
+            <h2 class="panel-title">Como funciona</h2>
+            {% if kind == "agent" %}
+            <p class="side-text">Um agente combina um modelo, instruções e as ferramentas do seu workspace. Só aparecem aqui as ferramentas instaladas — crie ou instale outras para ampliá-lo.</p>
+            {% elif kind == "skill" %}
+            <p class="side-text">Uma skill é conhecimento reutilizável: instruções que um agente carrega quando precisa executar um tipo de tarefa. Pode ser usada como etapa de um workflow.</p>
+            {% else %}
+            <p class="side-text">Um workflow encadeia ferramentas, agentes e skills do seu workspace em etapas executadas em ordem. Cada etapa recebe o resultado da anterior.</p>
+            {% endif %}
+          </section>
+
+          <section class="panel notice">
+            <svg><use href="#i-alert"/></svg>
+            {% if kind == "agent" %}
+            <p>No chat, o agente responde com as instruções e o modelo definidos aqui, usando a chave da OpenAI de quem conversa. As <strong>ferramentas ainda não são executadas</strong>: isso depende do ambiente isolado de execução.</p>
+            {% elif kind == "skill" %}
+            <p>A skill fica definida e instalável. Ela <strong>ainda não é carregada automaticamente</strong> pelos agentes.</p>
+            {% else %}
+            <p>O workflow fica definido e instalável. A <strong>execução das etapas ainda não está ativa</strong>.</p>
+            {% endif %}
+          </section>
+        </aside>
+      </div>
+    </section>
+  </div>
+</div>
+
+<template id="tpl-step">
+  <li class="step-row">
+    <span class="step-num"></span>
+    <input class="input step-name" maxlength="120" placeholder="Nome da etapa" aria-label="Nome da etapa">
+    <select class="input step-uses" aria-label="O que executar"></select>
+    <div class="step-move">
+      <button class="icon-btn icon-btn--sm" type="button" data-step="up" title="Mover para cima"><svg><use href="#i-arrow-up"/></svg></button>
+      <button class="icon-btn icon-btn--sm" type="button" data-step="down" title="Mover para baixo"><svg><use href="#i-arrow-down"/></svg></button>
+      <button class="icon-btn icon-btn--sm" type="button" data-step="remove" title="Remover etapa"><svg><use href="#i-trash"/></svg></button>
+    </div>
+  </li>
+</template>
+
+{{ editor_config|json_script:"editor-config" }}
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{% static 'marketplace/js/item-editor.js' %}?v=8"></script>
+<script src="{% static 'marketplace/js/sharing.js' %}?v=8"></script>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ conversation.title }} · Deimos Agent OS{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="{% static 'chat/css/shared.css' %}?v=8">
+{% endblock %}
+
+{% block body %}
+{% include "partials/icons.html" %}
+<div class="shared">
+  <header class="shared-top">
+    <a class="brand" href="{% url 'chat:index' %}">
+      <svg class="brand-mark"><use href="#deimos-d"/></svg>
+      <span class="brand-text"><span class="brand-name">DEIMOS</span><span class="brand-sub">AGENT&nbsp;OS</span></span>
+    </a>
+    <span class="shared-badge"><svg><use href="#i-eye"/></svg>Somente leitura</span>
+  </header>
+
+  <main class="shared-main">
+    <h1 class="shared-title">{{ conversation.title }}</h1>
+    <p class="shared-meta">
+      Conversa compartilhada por {{ author }}
+      {% if conversation.agent %}· com o agente {{ conversation.agent.name }}{% endif %}
+      · {{ conversation.updated_at|date:"d/m/Y" }}
+    </p>
+
+    <div class="messages" id="messages"></div>
+
+    <footer class="shared-foot">
+      <p>Respostas geradas por IA podem conter erros. Esta página mostra uma cópia de leitura; arquivos anexados não são compartilhados.</p>
+      <a class="btn btn-primary" href="{% url 'accounts:register' %}">Criar minha conta no Deimos Agent OS</a>
+    </footer>
+  </main>
+</div>
+
+<template id="tpl-message">
+  <article class="msg">
+    <div class="msg-avatar"><svg><use href="#deimos-d"/></svg></div>
+    <div class="msg-body">
+      <p class="msg-speaker"></p>
+      <div class="msg-content"></div>
+      <p class="msg-note" hidden></p>
+    </div>
+  </article>
+</template>
+
+{{ shared_messages|json_script:"shared-messages" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+  (() => {
+    const list = JSON.parse(document.getElementById("shared-messages").textContent);
+    const root = document.getElementById("messages");
+    const tpl = document.getElementById("tpl-message");
+    marked.use({ gfm: true, breaks: true });
+
+    list.forEach((m) => {
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      node.classList.add(`msg--${m.role}`);
+      node.querySelector(".msg-speaker").textContent = m.speaker;
+      const body = node.querySelector(".msg-content");
+      if (m.role === "user") {
+        body.textContent = m.content;
+      } else {
+        body.classList.add("prose");
+        body.innerHTML = DOMPurify.sanitize(marked.parse(m.content));
+        body.querySelectorAll("pre code").forEach((el) => hljs.highlightElement(el));
+        body.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener noreferrer nofollow"; });
+      }
+      const notes = [];
+      if (m.attachments.length) notes.push(`Anexos: ${m.attachments.join(", ")}`);
+      if (m.sources.length) notes.push(`Fontes: ${[...new Set(m.sources)].join(", ")}`);
+      if (notes.length) {
+        const note = node.querySelector(".msg-note");
+        note.textContent = notes.join(" · ");
+        note.hidden = false;
+      }
+      root.appendChild(node);
+    });
+  })();
+</script>
+{% endblock %}

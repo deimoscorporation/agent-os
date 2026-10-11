@@ -1,0 +1,103 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block title %}Fila de revisão · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs"><span>Fila de revisão</span></nav>
+</header>
+
+<div class="page">
+  <div class="page-inner">
+    <section class="page-head">
+      <div>
+        <h1 class="page-title">Fila de revisão</h1>
+        <p class="page-sub">Itens enviados para o marketplace público. Nada entra no catálogo sem aprovação da equipe.</p>
+      </div>
+    </section>
+
+    <h2 class="section-title">Aguardando revisão <span class="tab-count">{{ pending|length }}</span></h2>
+    {% if pending %}
+    <ul class="queue">
+      {% for r in pending %}
+      {% with item=r.item %}
+      <li class="panel queue-item" data-request="{{ r.id }}">
+        <div class="queue-head">
+          <span class="tile tile--{{ item.kind }}"><svg><use href="#{{ item.icon_id }}"/></svg></span>
+          <div class="queue-title">
+            <h3>{{ item.name }} <span class="mono muted">v{{ r.version }}</span></h3>
+            <p class="detail-meta">
+              <span class="badge badge--{{ item.kind }}">{{ item.get_kind_display }}</span>
+              {{ item.workspace.name }} <span class="dot">·</span> enviado por {{ r.requested_by.full_name|default:"—" }}
+              <span class="dot">·</span> {{ r.created_at|date:"d/m/Y H:i" }}
+              {% if item.is_public %}<span class="dot">·</span> atualização de item já público (v{{ item.approved_version }}){% endif %}
+            </p>
+          </div>
+          <a class="btn btn-sm btn-ghost" href="{% url 'marketplace:item_detail' item.id %}" target="_blank" rel="noopener"><svg><use href="#i-eye"/></svg><span>Ver conteúdo</span></a>
+        </div>
+        <p class="queue-summary">{{ item.summary|default:item.description|truncatechars:220 }}</p>
+        <div class="queue-actions">
+          <input class="input" placeholder="Nota para o autor (obrigatória ao rejeitar)" maxlength="500" aria-label="Nota para o autor">
+          <button class="btn btn-ghost btn-danger-ghost" type="button" data-decision="reject">Rejeitar</button>
+          <button class="btn btn-primary" type="button" data-decision="approve"><svg><use href="#i-check"/></svg><span>Aprovar</span></button>
+        </div>
+      </li>
+      {% endwith %}
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty empty--inline"><svg><use href="#i-check"/></svg><p>Nada na fila.</p></div>
+    {% endif %}
+
+    {% if decided %}
+    <h2 class="section-title section-title--spaced">Decisões recentes</h2>
+    <div class="panel table-wrap">
+      <table class="table">
+        <thead><tr><th>Item</th><th>Versão</th><th>Decisão</th><th>Por</th><th>Nota</th></tr></thead>
+        <tbody>
+          {% for r in decided %}
+          <tr>
+            <td><a class="link" href="{% url 'marketplace:item_detail' r.item.id %}">{{ r.item.name }}</a></td>
+            <td class="mono">{{ r.version }}</td>
+            <td><span class="badge badge--status-{{ r.status }}">{{ r.get_status_display }}</span></td>
+            <td>{{ r.reviewer.get_short_name|default:"—" }}{% if r.decided_at %} · {{ r.decided_at|date:"d/m" }}{% endif %}</td>
+            <td>{{ r.note|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  (() => {
+    const { api, toast } = window.Deimos;
+    document.addEventListener("click", async (e) => {
+      const button = e.target.closest("[data-decision]");
+      if (!button) return;
+      const row = button.closest("[data-request]");
+      const note = row.querySelector("input").value;
+      button.disabled = true;
+      try {
+        await api(`/api/review/${row.dataset.request}/`, {
+          method: "POST",
+          body: JSON.stringify({ decision: button.dataset.decision, note }),
+        });
+        location.reload();
+      } catch (err) {
+        toast(err.message, true);
+        button.disabled = false;
+      }
+    });
+  })();
+</script>
+{% endblock %}

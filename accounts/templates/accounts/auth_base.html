@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'deimos/css/auth.css' %}?v=8">{% endblock %}
+
+{% block body %}
+{% include "partials/icons.html" %}
+<div class="auth">
+  <aside class="auth-art">
+    <div class="auth-art-bg" style="--banner: url('{% static 'deimos/img/deimos-banner.png' %}')"></div>
+    <a class="brand" href="{% url 'accounts:login' %}">
+      <svg class="brand-mark"><use href="#deimos-d"/></svg>
+      <span class="brand-text">
+        <span class="brand-name">DEIMOS</span>
+        <span class="brand-sub">AGENT&nbsp;OS</span>
+      </span>
+    </a>
+    <div class="auth-pitch">
+      <h2>O sistema operacional<br>dos seus agentes de IA</h2>
+      <ul>
+        <li><svg><use href="#i-sparkles"/></svg>Crie ferramentas, agentes, skills e workflows descrevendo o que precisa</li>
+        <li><svg><use href="#i-store"/></svg>Instale do marketplace e monte seu workspace em minutos</li>
+        <li><svg><use href="#i-shield"/></svg>Código auditado e permissões explícitas em cada ferramenta</li>
+      </ul>
+    </div>
+    <p class="auth-art-foot">Deimos Corp · Advanced AI &amp; CyberSecurity</p>
+  </aside>
+
+  <main class="auth-main">
+    <div class="auth-card">
+      <a class="brand auth-brand-mobile" href="{% url 'accounts:login' %}">
+        <svg class="brand-mark"><use href="#deimos-d"/></svg>
+        <span class="brand-text"><span class="brand-name">DEIMOS</span><span class="brand-sub">AGENT&nbsp;OS</span></span>
+      </a>
+      <h1 class="auth-title">{% block heading %}{% endblock %}</h1>
+      <p class="auth-sub">{% block subheading %}{% endblock %}</p>
+
+      <form method="post" class="auth-form" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        {% if form.non_field_errors %}
+        <div class="auth-alert" role="alert">
+          <svg><use href="#i-alert"/></svg>
+          <div>{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+        </div>
+        {% endif %}
+
+        {% block fields %}{% endblock %}
+
+        <button class="btn btn-primary auth-submit" type="submit">{% block submit %}{% endblock %}</button>
+      </form>
+
+      <p class="auth-switch">{% block switch %}{% endblock %}</p>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-toggle-password]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var input = button.parentElement.querySelector("input");
+      var show = input.type === "password";
+      input.type = show ? "text" : "password";
+      button.setAttribute("aria-pressed", String(show));
+      button.setAttribute("aria-label", show ? "Ocultar senha" : "Mostrar senha");
+    });
+  });
+  var form = document.querySelector(".auth-form");
+  form.addEventListener("submit", function () {
+    form.querySelector(".auth-submit").disabled = true;
+  });
+</script>
+{% block auth_scripts %}{% endblock %}
+{% endblock %}

@@ -1,0 +1,33 @@
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+
+# Banco de dados e arquivos enviados pelos usuários
+*.sqlite3
+*.sqlite3-journal
+*.bak
+media/
+staticfiles/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Editores e sistema
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Assistentes de código
+.claude/

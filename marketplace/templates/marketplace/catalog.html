@@ -1,0 +1,74 @@
+{% extends "shell.html" %}
+{% load static l10n %}
+
+{% block title %}Marketplace · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs"><span>Marketplace</span></nav>
+</header>
+
+<div class="page">
+  <section class="hero">
+    <div class="hero-bg" style="--banner: url('{% static 'deimos/img/deimos-banner.png' %}')"></div>
+    <div class="page-inner hero-inner">
+      <p class="eyebrow">Deimos Marketplace</p>
+      <h1 class="hero-title">Monte seu agent OS</h1>
+      <p class="hero-sub">Instale agentes, workflows, skills e ferramentas em <strong>{{ workspace.name }}</strong> — ou crie e publique os seus.</p>
+      <div class="hero-actions">
+        <label class="search search--lg">
+          <svg><use href="#i-search"/></svg>
+          <input id="catalog-search" type="search" placeholder="Buscar por nome, tag ou categoria" autocomplete="off">
+        </label>
+        {% include "marketplace/_create_menu.html" with size="lg" %}
+      </div>
+    </div>
+  </section>
+
+  <div class="page-inner">
+    <div class="toolbar">
+      <div class="tabs" role="tablist" id="kind-tabs">
+        <button class="tab is-active" role="tab" data-kind="">Todos <span class="tab-count">{{ total }}</span></button>
+        {% for kind in kinds %}
+        <button class="tab" role="tab" data-kind="{{ kind.value }}">{{ kind.label }} <span class="tab-count">{{ kind.count }}</span></button>
+        {% endfor %}
+      </div>
+      <div class="toolbar-filters">
+        {% if has_org_items %}
+        <select class="input select-sm" id="catalog-scope" aria-label="Origem">
+          <option value="">Público e organização</option>
+          <option value="organization">Só da organização</option>
+          <option value="public">Só público</option>
+        </select>
+        {% endif %}
+        <select class="input select-sm" id="catalog-category" aria-label="Categoria">
+          <option value="">Todas as categorias</option>
+          {% for value, label in categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+        <select class="input select-sm" id="catalog-sort" aria-label="Ordenar por">
+          <option value="featured">Em destaque</option>
+          <option value="installs">Mais instalados</option>
+          <option value="rating">Melhor avaliados</option>
+          <option value="created">Mais recentes</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid" id="catalog-grid">
+      {% for item in items %}
+        {% include "marketplace/_card.html" %}
+      {% endfor %}
+    </div>
+    <div class="empty" id="catalog-empty" hidden>
+      <svg><use href="#i-search"/></svg>
+      <p>Nada encontrado com esses filtros.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}<script src="{% static 'marketplace/js/marketplace.js' %}?v=8"></script>{% endblock %}

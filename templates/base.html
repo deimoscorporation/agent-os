@@ -1,0 +1,30 @@
+{% load static %}<!doctype html>
+<html lang="pt-br" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="theme-color" content="#070a12">
+  <title>{% block title %}Deimos Agent OS{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'deimos/img/deimos-mark.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'deimos/img/deimos-mark.png' %}">
+  <script>
+    (function () {
+      try {
+        if (sessionStorage.getItem("deimos-splash") === "1") document.documentElement.classList.add("splash-seen");
+        sessionStorage.setItem("deimos-splash", "1");
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Michroma&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <link rel="stylesheet" href="{% static 'deimos/css/app.css' %}?v=8">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% block body %}{% endblock %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

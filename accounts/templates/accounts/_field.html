@@ -1,0 +1,12 @@
+<div class="auth-field{% if field.errors %} has-error{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  <div class="auth-input">
+    {{ field }}
+    {% if field.field.widget.input_type == "password" %}
+    <button type="button" class="auth-eye" data-toggle-password aria-label="Mostrar senha" aria-pressed="false" tabindex="-1">
+      <svg><use href="#i-eye"/></svg>
+    </button>
+    {% endif %}
+  </div>
+  {% for error in field.errors %}<p class="auth-error">{{ error }}</p>{% endfor %}
+</div>

@@ -1,0 +1,51 @@
+{% extends "accounts/auth_base.html" %}
+
+{% block title %}Criar conta · Deimos Agent OS{% endblock %}
+{% block heading %}Criar conta{% endblock %}
+{% block subheading %}Leva menos de um minuto.{% endblock %}
+
+{% block fields %}
+{% include "accounts/_field.html" with field=form.full_name %}
+{% include "accounts/_field.html" with field=form.email %}
+{% include "accounts/_field.html" with field=form.password1 %}
+<div class="strength" id="strength" hidden>
+  <div class="strength-bar"><span></span></div>
+  <span class="strength-label"></span>
+</div>
+{% include "accounts/_field.html" with field=form.password2 %}
+<ul class="auth-rules">
+  <li>Mínimo de 8 caracteres</li>
+  <li>Não pode ser só números nem uma senha muito comum</li>
+  <li>Não pode ser parecida com seu nome ou e-mail</li>
+</ul>
+{% endblock %}
+
+{% block submit %}Criar conta{% endblock %}
+
+{% block switch %}
+Já tem conta? <a href="{% url 'accounts:login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Entrar</a>
+{% endblock %}
+
+{% block auth_scripts %}
+<script>
+  (function () {
+    var input = document.getElementById("{{ form.password1.id_for_label }}");
+    var box = document.getElementById("strength");
+    var levels = ["Fraca", "Fraca", "Razoável", "Boa", "Forte"];
+    function update() {
+      var v = input.value;
+      box.hidden = !v;
+      var score = 0;
+      if (v.length >= 8) score++;
+      if (v.length >= 12) score++;
+      if (/[a-z]/.test(v) && /[A-Z]/.test(v)) score++;
+      if (/\d/.test(v) && /[^a-zA-Z\d]/.test(v)) score++;
+      if (v.length < 8) score = 0;
+      box.dataset.score = score;
+      box.querySelector(".strength-label").textContent = levels[score];
+    }
+    input.addEventListener("input", update);
+    update();
+  })();
+</script>
+{% endblock %}

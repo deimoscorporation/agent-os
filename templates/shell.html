@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body %}
+{% include "partials/icons.html" %}
+
+<div class="splash" id="splash" aria-hidden="true">
+  <img class="splash-logo" src="{% static 'deimos/img/deimos-logo-dark.jpg' %}" alt="">
+</div>
+
+<div class="app" id="app" {% block app_attrs %}{% endblock %}>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <a class="brand" href="{% url 'chat:index' %}" aria-label="Deimos Corp — início">
+        <svg class="brand-mark"><use href="#deimos-d"/></svg>
+        <span class="brand-text">
+          <span class="brand-name">DEIMOS</span>
+          <span class="brand-sub">AGENT&nbsp;OS</span>
+        </span>
+      </a>
+      <button class="icon-btn only-mobile" data-action="close-sidebar" aria-label="Fechar menu">
+        <svg><use href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <details class="ws-switch" id="ws-switch">
+      <summary>
+        <span class="ws-badge ws-badge--{{ workspace.kind }}">{{ workspace.initials }}</span>
+        <span class="ws-current">
+          <strong>{{ workspace.name }}</strong>
+          <small>{% if workspace.is_organization %}Organização · {{ membership.get_role_display }}{% else %}Workspace pessoal{% endif %}</small>
+        </span>
+        <svg><use href="#i-chevrons"/></svg>
+      </summary>
+      <div class="ws-menu">
+        <form method="post" action="{% url 'workspaces:switch' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% if section == 'chat' %}/{% else %}{% url 'marketplace:workspace' %}{% endif %}">
+          {% for ws in workspaces %}
+          <button class="ws-option{% if ws.id == workspace.id %} is-active{% endif %}" name="workspace_id" value="{{ ws.id }}">
+            <span class="ws-badge ws-badge--{{ ws.kind }}">{{ ws.initials }}</span>
+            <span>{{ ws.name }}</span>
+            {% if ws.id == workspace.id %}<svg><use href="#i-check"/></svg>{% endif %}
+          </button>
+          {% endfor %}
+        </form>
+        <a class="ws-option ws-option--new" href="{% url 'workspaces:team' %}?nova=1">
+          <span class="ws-badge"><svg><use href="#i-plus"/></svg></span><span>Criar organização</span>
+        </a>
+      </div>
+    </details>
+
+    <nav class="nav" aria-label="Principal">
+      <a class="nav-link{% if section == 'chat' %} is-active{% endif %}" href="{% url 'chat:index' %}">
+        <svg><use href="#i-chat"/></svg>Chat
+      </a>
+      <a class="nav-link{% if section == 'marketplace' %} is-active{% endif %}" href="{% url 'marketplace:catalog' %}">
+        <svg><use href="#i-store"/></svg>Marketplace
+      </a>
+      <a class="nav-link{% if section == 'workspace' %} is-active{% endif %}" href="{% url 'marketplace:workspace' %}">
+        <svg><use href="#i-grid"/></svg>Workspace
+      </a>
+      <a class="nav-link{% if section == 'knowledge' %} is-active{% endif %}" href="{% url 'knowledge:index' %}">
+        <svg><use href="#i-book"/></svg>Conhecimento
+      </a>
+      <a class="nav-link{% if section == 'secrets' %} is-active{% endif %}" href="{% url 'workspaces:secrets' %}">
+        <svg><use href="#i-key"/></svg>Cofre
+      </a>
+      <a class="nav-link{% if section == 'team' %} is-active{% endif %}" href="{% url 'workspaces:team' %}">
+        <svg><use href="#i-users"/></svg>Equipe
+      </a>
+      {% if user.is_staff %}
+      <a class="nav-link{% if section == 'review' %} is-active{% endif %}" href="{% url 'marketplace:review_queue' %}">
+        <svg><use href="#i-shield"/></svg>Revisão
+        {% if pending_reviews %}<span class="nav-count">{{ pending_reviews }}</span>{% endif %}
+      </a>
+      {% endif %}
+    </nav>
+
+    <button class="new-chat" data-action="new-chat">
+      <svg><use href="#i-plus"/></svg>
+      <span>Nova conversa</span>
+      <kbd>Ctrl ⇧ O</kbd>
+    </button>
+
+    <label class="search">
+      <svg><use href="#i-search"/></svg>
+      <input id="search" type="search" placeholder="Buscar conversas" autocomplete="off">
+    </label>
+
+    <nav class="conversations" id="conversations" aria-label="Conversas">
+      <p class="conversations-empty">Nenhuma conversa ainda.</p>
+    </nav>
+
+    <div class="sidebar-foot">
+      <a class="org{% if section == 'account' %} is-active{% endif %}" href="{% url 'accounts:account' %}" title="Minha conta">
+        <span class="avatar">{{ user.initials }}</span>
+        <div class="org-text">
+          <strong>{{ user.full_name }}</strong>
+          <span>{{ user.email }}</span>
+        </div>
+      </a>
+      <form method="post" action="{% url 'accounts:logout' %}">
+        {% csrf_token %}
+        <button class="icon-btn" type="submit" aria-label="Sair" title="Sair">
+          <svg><use href="#i-logout"/></svg>
+        </button>
+      </form>
+    </div>
+  </aside>
+  <div class="scrim" data-action="close-sidebar"></div>
+
+  <main class="main">
+    {% block main %}{% endblock %}
+  </main>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h3 id="modal-title"></h3>
+    <p id="modal-text"></p>
+    <input id="modal-input" type="text" maxlength="120" hidden>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal="cancel">Cancelar</button>
+      <button class="btn btn-primary" data-modal="ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'deimos/js/ui.js' %}?v=8"></script>
+{% if section != 'chat' %}<script src="{% static 'deimos/js/sidebar.js' %}?v=8"></script>{% endif %}
+{% for message in messages %}
+<script>Deimos.toast("{{ message|escapejs }}", {% if message.level >= 40 %}true{% else %}false{% endif %});</script>
+{% endfor %}
+{% block page_scripts %}{% endblock %}
+{% endblock %}

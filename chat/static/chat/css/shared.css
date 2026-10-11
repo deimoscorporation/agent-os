@@ -1,0 +1,51 @@
+/* Página pública de conversa compartilhada (somente leitura). */
+
+.shared { height: 100dvh; overflow-y: auto; }
+
+.shared-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(12px);
+}
+.shared-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.shared-badge svg { width: 14px; height: 14px; }
+
+.shared-main { max-width: var(--thread-w); margin: 0 auto; padding: 36px 20px 64px; }
+.shared-title { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -.01em; line-height: 1.25; }
+.shared-meta { margin: 8px 0 8px; color: var(--muted); font-size: 13.5px; }
+.shared .messages { padding: 28px 0 8px; }
+
+.msg-speaker { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.shared .msg--user .msg-speaker { text-align: right; }
+.msg-note { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+.shared .msg--user .msg-note { text-align: right; }
+
+.shared-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 36px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.shared-foot p { margin: 0; max-width: 520px; font-size: 12.5px; color: var(--muted); }
+.shared-foot .btn { text-decoration: none; padding: 10px 18px; }

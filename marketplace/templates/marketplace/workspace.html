@@ -1,0 +1,129 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block title %}Workspace · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs"><span>Workspace</span></nav>
+</header>
+
+<div class="page">
+  <div class="page-inner">
+    <section class="page-head">
+      <div>
+        <h1 class="page-title">{% if workspace.is_organization %}{{ workspace.name }}{% else %}Seu workspace{% endif %}</h1>
+        <p class="page-sub">{% if workspace.is_organization %}Workspace compartilhado da organização: tudo aqui está disponível para os agentes de todos os membros.{% else %}Tudo o que está instalado e disponível para os seus agentes.{% endif %}</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn btn-ghost" href="{% url 'marketplace:catalog' %}"><svg><use href="#i-store"/></svg><span>Explorar marketplace</span></a>
+        {% include "marketplace/_create_menu.html" %}
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="stat"><span class="stat-value">{{ total }}</span><span class="stat-label">Itens instalados</span></div>
+      <div class="stat"><span class="stat-value">{{ created }}</span><span class="stat-label">Criados neste workspace</span></div>
+      <div class="stat stat--wide">
+        <div>
+          <span class="stat-value">{{ agent_tools }}</span>
+          <span class="stat-label">Ferramentas ativas disponíveis para agentes</span>
+        </div>
+        <button class="endpoint" data-copy-text="{{ request.scheme }}://{{ request.get_host }}{% url 'marketplace:workspace_tools' %}" title="Copiar endpoint">
+          <span class="mono">GET {% url 'marketplace:workspace_tools' %}</span><svg><use href="#i-copy"/></svg>
+        </button>
+      </div>
+    </section>
+
+    {% if updates %}
+    <section class="panel notice notice--info">
+      <svg><use href="#i-refresh"/></svg>
+      <p><strong>{{ updates }} atualizaç{{ updates|pluralize:"ão disponível,ões disponíveis" }}.</strong> Os itens continuam na versão instalada até {% if membership.is_admin %}você atualizar{% else %}um admin atualizar{% endif %}.</p>
+    </section>
+    {% endif %}
+
+    {% for group in groups %}
+    <section class="ws-group">
+      <div class="section-head">
+        <h2 class="section-title">{{ group.label }} <span class="tab-count">{{ group.installs|length }}</span></h2>
+        <a class="btn btn-sm btn-ghost" href="{% url 'marketplace:item_new' group.kind %}"><svg><use href="#i-plus"/></svg><span>Criar {{ group.noun }}</span></a>
+      </div>
+      {% if group.installs %}
+      <div class="grid">
+        {% for inst in group.installs %}
+        {% with item=inst.item %}
+        <article class="card ws-card{% if not inst.enabled %} is-disabled{% endif %}">
+          <div class="card-top">
+            <span class="tile tile--{{ item.kind }}"><svg><use href="#{{ item.icon_id }}"/></svg></span>
+            <div class="card-heading">
+              <h3>
+                {% if inst.can_edit %}
+                <a class="card-link" href="{% url 'marketplace:item_edit' item.id %}">{{ item.name }}</a>
+                {% else %}
+                <a class="card-link" href="{% url 'marketplace:item_detail' item.id %}">{{ item.name }}</a>
+                {% endif %}
+              </h3>
+              <p class="card-author mono">{{ item.slug }} · v{{ inst.installed_version }}</p>
+            </div>
+          </div>
+          <p class="card-summary">{{ item.summary|default:item.description|truncatechars:140 }}</p>
+
+          {% if inst.update_available or inst.missing_secrets %}
+          <div class="card-alerts">
+            {% if inst.update_available %}
+            <div class="card-alert card-alert--info">
+              <svg><use href="#i-refresh"/></svg><span>v{{ inst.available_version }} disponível</span>
+              {% if membership.is_admin %}<button class="btn btn-sm btn-ghost" data-upgrade="{{ item.id }}">Atualizar</button>{% endif %}
+            </div>
+            {% endif %}
+            {% if inst.missing_secrets %}
+            <a class="card-alert card-alert--warn" href="{% url 'workspaces:secrets' %}">
+              <svg><use href="#i-key"/></svg><span>Falta no cofre: {{ inst.missing_secrets|join:", " }}</span>
+            </a>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <div class="card-foot">
+            {% if item.workspace_id == workspace.id %}
+              <span class="badge badge--mine">{% if item.created_by_id == user.id %}Criado por você{% else %}Criado aqui{% endif %}</span>
+              {% if item.is_public %}<span class="badge">Público</span>{% elif item.is_org_shared %}<span class="badge">Organização</span>{% endif %}
+            {% else %}
+              <span class="badge">{{ item.author }}</span>
+            {% endif %}
+            {% if item.kind == "agent" and inst.enabled %}
+            <a class="btn btn-sm btn-ghost card-action" href="{% url 'chat:index' %}?agente={{ item.id }}"><svg><use href="#i-chat"/></svg><span>Conversar</span></a>
+            {% endif %}
+            {% if membership.is_admin %}
+            <label class="switch" title="Ativar/desativar">
+              <input type="checkbox" data-toggle-enabled="{{ item.id }}" {% if inst.enabled %}checked{% endif %}>
+              <span class="switch-track"></span>
+            </label>
+            {% elif not inst.enabled %}<span class="badge">Desativado</span>{% endif %}
+            {% if inst.can_edit %}
+            <button class="icon-btn icon-btn--sm" data-delete-item="{{ item.id }}" data-name="{{ item.name }}" title="Excluir"><svg><use href="#i-trash"/></svg></button>
+            {% elif membership.is_admin and item.workspace_id != workspace.id %}
+            <button class="icon-btn icon-btn--sm" data-uninstall="{{ item.id }}" data-name="{{ item.name }}" title="Remover do workspace"><svg><use href="#i-trash"/></svg></button>
+            {% endif %}
+          </div>
+        </article>
+        {% endwith %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty empty--inline">
+        <svg><use href="#i-store"/></svg>
+        <p>Nada aqui ainda. <a href="{% url 'marketplace:item_new' group.kind %}">Criar {{ group.noun }}</a> ou <a href="{% url 'marketplace:catalog' %}?kind={{ group.kind }}">explorar {{ group.label|lower }} no marketplace</a>.</p>
+      </div>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}<script src="{% static 'marketplace/js/marketplace.js' %}?v=8"></script>{% endblock %}

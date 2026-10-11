@@ -1,0 +1,144 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block title %}Equipe · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs"><span>Equipe</span></nav>
+</header>
+
+<div class="page">
+  <div class="page-inner page-inner--narrow">
+    {% if workspace.is_organization %}
+    <section class="account-head">
+      <span class="ws-badge ws-badge--organization ws-badge--lg">{{ workspace.initials }}</span>
+      <div>
+        <h1 class="page-title">{{ workspace.name }}</h1>
+        <p class="detail-meta">Organização <span class="dot">·</span> {{ members|length }} membro{{ members|length|pluralize }} <span class="dot">·</span> você é {{ membership.get_role_display|lower }}</p>
+      </div>
+    </section>
+
+    {% if membership.is_admin %}
+    <form class="panel" id="invite-form">
+      <h2 class="panel-title">Adicionar pessoa</h2>
+      <div class="inline-form">
+        <input class="input" type="email" id="invite-email" placeholder="email@empresa.com" autocomplete="off" required>
+        <select class="input select-sm" id="invite-role" aria-label="Papel">
+          {% for value, label in roles %}<option value="{{ value }}"{% if value == "member" %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-primary" type="submit"><svg><use href="#i-plus"/></svg><span>Adicionar</span></button>
+      </div>
+      <p class="field-help">Quem já tem conta entra na hora. Quem ainda não tem fica como convite pendente e entra automaticamente ao se cadastrar com esse e-mail.</p>
+    </form>
+    {% endif %}
+
+    <section class="panel">
+      <h2 class="panel-title">Membros</h2>
+      <ul class="people">
+        {% for m in members %}
+        <li class="person">
+          <span class="avatar">{{ m.user.initials }}</span>
+          <div class="person-text">
+            <strong>{{ m.user.full_name }}{% if m.user_id == user.id %} <span class="muted">(você)</span>{% endif %}</strong>
+            <span>{{ m.user.email }}</span>
+          </div>
+          {% if membership.is_admin %}
+          <select class="input select-sm" data-member-role="{{ m.id }}" aria-label="Papel de {{ m.user.full_name }}">
+            {% for value, label in roles %}<option value="{{ value }}"{% if value == m.role %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          {% else %}
+          <span class="badge{% if m.is_admin %} badge--mine{% endif %}">{{ m.get_role_display }}</span>
+          {% endif %}
+          {% if m.user_id == user.id %}
+          <button class="btn btn-sm btn-ghost btn-danger-ghost" data-member-remove="{{ m.id }}" data-self="true" data-name="{{ workspace.name }}">Sair</button>
+          {% elif membership.is_admin %}
+          <button class="icon-btn icon-btn--sm" data-member-remove="{{ m.id }}" data-name="{{ m.user.full_name }}" title="Remover da organização"><svg><use href="#i-trash"/></svg></button>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    {% if invitations %}
+    <section class="panel">
+      <h2 class="panel-title">Convites pendentes</h2>
+      <ul class="people">
+        {% for inv in invitations %}
+        <li class="person">
+          <span class="avatar"><svg><use href="#i-mail"/></svg></span>
+          <div class="person-text">
+            <strong>{{ inv.email }}</strong>
+            <span>Convidado em {{ inv.created_at|date:"d/m/Y" }} · aguardando cadastro</span>
+          </div>
+          <span class="badge">{{ inv.get_role_display }}</span>
+          {% if membership.is_admin %}
+          <button class="icon-btn icon-btn--sm" data-invitation-remove="{{ inv.id }}" title="Cancelar convite"><svg><use href="#i-trash"/></svg></button>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <section class="panel">
+      <h2 class="panel-title">O que cada papel pode fazer</h2>
+      <div class="table-wrap">
+        <table class="table roles-table">
+          <thead><tr><th></th><th>Admin</th><th>Membro</th></tr></thead>
+          <tbody>
+            <tr><td>Usar tudo o que está no workspace</td><td class="yes">Sim</td><td class="yes">Sim</td></tr>
+            <tr><td>Criar itens e editar os que criou</td><td class="yes">Sim</td><td class="yes">Sim</td></tr>
+            <tr><td>Editar ou excluir itens de outras pessoas</td><td class="yes">Sim</td><td>Não</td></tr>
+            <tr><td>Instalar, atualizar e remover itens do marketplace</td><td class="yes">Sim</td><td>Não</td></tr>
+            <tr><td>Compartilhar na organização e enviar ao marketplace público</td><td class="yes">Sim</td><td>Não</td></tr>
+            <tr><td>Gerenciar segredos do cofre</td><td class="yes">Sim</td><td>Só ver os nomes</td></tr>
+            <tr><td>Gerenciar membros</td><td class="yes">Sim</td><td>Não</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if membership.is_admin %}
+    <section class="panel">
+      <h2 class="panel-title">Configurações da organização</h2>
+      <form class="inline-form" id="rename-form">
+        <input class="input" id="org-name" value="{{ workspace.name }}" maxlength="80" required aria-label="Nome da organização">
+        <button class="btn btn-ghost" type="submit">Renomear</button>
+      </form>
+      <div class="danger-zone">
+        <div>
+          <strong>Excluir organização</strong>
+          <p class="side-text">Apaga o workspace compartilhado, os itens criados nele e todos os segredos. Não pode ser desfeito.</p>
+        </div>
+        <button class="btn btn-ghost btn-danger-ghost" type="button" id="org-delete" data-name="{{ workspace.name }}">Excluir</button>
+      </div>
+    </section>
+    {% endif %}
+
+    {% else %}
+    <section class="page-head">
+      <div>
+        <h1 class="page-title">Equipe</h1>
+        <p class="page-sub">Você está no seu workspace pessoal. Crie uma organização para compartilhar ferramentas, agentes e segredos com o seu time.</p>
+      </div>
+    </section>
+    {% endif %}
+
+    <form class="panel" id="org-create-form">
+      <h2 class="panel-title">{% if workspace.is_organization %}Criar outra organização{% else %}Criar organização{% endif %}</h2>
+      <div class="inline-form">
+        <input class="input" id="org-create-name" placeholder="Nome da empresa ou do time" maxlength="80" required>
+        <button class="btn btn-primary" type="submit"><svg><use href="#i-building"/></svg><span>Criar</span></button>
+      </div>
+      <p class="field-help">Você vira admin e o workspace da organização passa a ser o ativo. Seu workspace pessoal continua existindo.</p>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}<script src="{% static 'deimos/js/workspaces.js' %}?v=8"></script>{% endblock %}

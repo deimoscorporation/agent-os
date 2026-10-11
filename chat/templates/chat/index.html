@@ -1,0 +1,148 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block app_attrs %}data-initial-conversation="{{ initial_conversation }}"{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <div class="topbar-title">
+    <h1 id="chat-title">Nova conversa</h1>
+    <label class="model-pill agent-pill" title="Quem responde nesta conversa (definido ao iniciar)">
+      <span class="status-dot"></span>
+      <select id="agent-select" aria-label="Agente da conversa">
+        <option value="">Assistente Deimos</option>
+      </select>
+    </label>
+    <label class="model-pill agent-pill" title="Modelo de IA">
+      <svg><use href="#i-cpu"/></svg>
+      <select id="model-select" aria-label="Modelo" data-default="{{ default_model }}">
+        {% for m in models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="topbar-actions">
+    <button class="icon-btn toggle-btn" id="knowledge-toggle" aria-pressed="false"
+            title="Consultar a base de conhecimento de {{ workspace.name }} nesta conversa"
+            data-has-documents="{{ has_knowledge|yesno:'true,false' }}">
+      <svg><use href="#i-book"/></svg><span>Base</span>
+    </button>
+    <details class="menu share-menu" id="share-menu" hidden>
+      <summary class="icon-btn" aria-label="Compartilhar e exportar" title="Compartilhar e exportar">
+        <svg><use href="#i-upload"/></svg>
+      </summary>
+      <div class="menu-list">
+        <div class="share-box">
+          <strong>Link público</strong>
+          <p id="share-hint">Qualquer pessoa com o link lê a conversa, sem precisar de conta. Anexos não são incluídos.</p>
+          <div class="share-link" id="share-link" hidden>
+            <input class="input mono" id="share-url" readonly aria-label="Link da conversa">
+            <button class="btn btn-sm btn-primary" type="button" data-action="share-copy"><svg><use href="#i-copy"/></svg><span>Copiar</span></button>
+          </div>
+          <button class="btn btn-sm btn-primary" type="button" data-action="share-create" id="share-create"><svg><use href="#i-globe"/></svg><span>Criar link</span></button>
+          <button class="btn btn-sm btn-ghost btn-danger-ghost" type="button" data-action="share-revoke" id="share-revoke" hidden>Desativar link</button>
+        </div>
+        <a class="menu-item" id="export-md" href="#"><span class="tile"><svg><use href="#i-download"/></svg></span><span><strong>Exportar Markdown</strong><small>Arquivo .md legível</small></span></a>
+        <a class="menu-item" id="export-json" href="#"><span class="tile"><svg><use href="#i-braces"/></svg></span><span><strong>Exportar JSON</strong><small>Com datas, anexos e fontes</small></span></a>
+      </div>
+    </details>
+    <button class="icon-btn" data-action="rename" id="btn-rename" aria-label="Renomear conversa" title="Renomear" hidden>
+      <svg><use href="#i-pencil"/></svg>
+    </button>
+    <button class="icon-btn" data-action="delete-current" id="btn-delete" aria-label="Excluir conversa" title="Excluir" hidden>
+      <svg><use href="#i-trash"/></svg>
+    </button>
+    <button class="icon-btn" data-action="new-chat" aria-label="Nova conversa" title="Nova conversa">
+      <svg><use href="#i-plus"/></svg>
+    </button>
+  </div>
+</header>
+
+<section class="thread" id="thread">
+  <div class="welcome" id="welcome">
+    <div class="welcome-bg" style="--banner: url('{% static 'deimos/img/deimos-banner.png' %}')"></div>
+    <div class="welcome-inner">
+      <svg class="welcome-mark"><use href="#deimos-d"/></svg>
+      <h2 class="welcome-title">Como posso ajudar hoje?</h2>
+      <p class="welcome-tagline"><span id="typewriter">Advanced AI &amp; CyberSecurity</span><span class="caret"></span></p>
+
+      <div class="suggestions">
+        <button class="suggestion" data-prompt="Faça uma análise de riscos de segurança para uma API REST em Django e liste as principais mitigações.">
+          <svg><use href="#i-shield"/></svg>
+          <span><strong>Análise de segurança</strong><small>Riscos e mitigações de uma API Django</small></span>
+        </button>
+        <button class="suggestion" data-prompt="Explique como funciona um pipeline RAG e quando ele é melhor que fine-tuning.">
+          <svg><use href="#i-cpu"/></svg>
+          <span><strong>Arquitetura de IA</strong><small>RAG vs. fine-tuning na prática</small></span>
+        </button>
+        <button class="suggestion" data-prompt="Escreva um script Python que monitore tentativas de login falhas em /var/log/auth.log.">
+          <svg><use href="#i-terminal"/></svg>
+          <span><strong>Automação</strong><small>Monitorar logins falhos com Python</small></span>
+        </button>
+        <button class="suggestion" data-prompt="Monte um checklist de resposta a incidentes para uma equipe pequena.">
+          <svg><use href="#i-radar"/></svg>
+          <span><strong>Resposta a incidentes</strong><small>Checklist para equipes enxutas</small></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="messages" id="messages" aria-live="polite"></div>
+</section>
+
+<div class="composer-wrap">
+  <button class="scroll-down" id="scroll-down" data-action="scroll-bottom" aria-label="Rolar até o fim" hidden>
+    <svg><use href="#i-arrow-down"/></svg>
+  </button>
+  {% if not has_key %}
+  <p class="key-banner">
+    <svg><use href="#i-key"/></svg>
+    <span>Modo de demonstração: cadastre sua chave da OpenAI para receber respostas de verdade.</span>
+    <a class="link" href="{% url 'accounts:account' %}#openai">Configurar chave</a>
+  </p>
+  {% endif %}
+  <form class="composer" id="composer">
+    <div class="composer-attachments" id="attachments" hidden></div>
+    <div class="composer-row">
+      <button type="button" class="icon-btn attach-btn" id="attach-btn" aria-label="Anexar arquivos ou imagens" title="Anexar arquivos ou imagens (até 5, 10 MB cada)">
+        <svg><use href="#i-clip"/></svg>
+      </button>
+      <input type="file" id="file-input" multiple hidden
+             accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.docx,.txt,.md,.csv,.tsv,.json,.log,.yaml,.yml,.xml,.html,.py,.js,.ts,.sql,.sh">
+      <textarea id="input" rows="1" placeholder="Envie uma mensagem para o Deimos…" aria-label="Mensagem" autofocus></textarea>
+      <button type="submit" class="send-btn" id="send-btn" aria-label="Enviar" disabled>
+        <svg class="icon-send"><use href="#i-arrow-up"/></svg>
+        <svg class="icon-stop"><use href="#i-stop"/></svg>
+      </button>
+    </div>
+  </form>
+  <div class="drop-hint" id="drop-hint" hidden><svg><use href="#i-clip"/></svg>Solte para anexar</div>
+  <p class="disclaimer">Respostas geradas por IA podem conter erros. Verifique informações críticas.</p>
+</div>
+
+<template id="tpl-message">
+  <article class="msg">
+    <div class="msg-avatar"><svg><use href="#deimos-d"/></svg></div>
+    <div class="msg-body">
+      <div class="msg-attachments" hidden></div>
+      <div class="msg-content"></div>
+      <div class="msg-sources" hidden></div>
+      <div class="msg-actions">
+        <button class="msg-action" data-action="copy-message" title="Copiar"><svg><use href="#i-copy"/></svg></button>
+        <button class="msg-action" data-action="regenerate" title="Gerar novamente"><svg><use href="#i-refresh"/></svg></button>
+      </div>
+    </div>
+  </article>
+</template>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="{% static 'chat/js/app.js' %}?v=8"></script>
+{% endblock %}

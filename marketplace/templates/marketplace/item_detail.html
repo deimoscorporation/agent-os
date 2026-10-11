@@ -1,0 +1,248 @@
+{% extends "shell.html" %}
+{% load static %}
+
+{% block title %}{{ item.name }} · Marketplace · Deimos Agent OS{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'marketplace/css/marketplace.css' %}?v=8">{% endblock %}
+
+{% block main %}
+<header class="topbar">
+  <button class="icon-btn" data-action="toggle-sidebar" aria-label="Mostrar/ocultar menu" title="Menu">
+    <svg><use href="#i-sidebar"/></svg>
+  </button>
+  <nav class="crumbs">
+    <a href="{% url 'marketplace:catalog' %}">Marketplace</a><svg><use href="#i-chevron-right"/></svg><span>{{ item.name }}</span>
+  </nav>
+</header>
+
+<div class="page">
+  <div class="page-inner">
+    <section class="detail-head">
+      <span class="tile tile--lg tile--{{ item.kind }}"><svg><use href="#{{ item.icon_id }}"/></svg></span>
+      <div class="detail-heading">
+        <div class="detail-badges">
+          <span class="badge badge--{{ item.kind }}">{{ item.get_kind_display }}</span>
+          <span class="badge">{{ item.get_category_display }}</span>
+          {% if item.featured %}<span class="featured"><svg><use href="#i-sparkles"/></svg>Destaque</span>{% endif %}
+          {% if item.is_org_shared %}<span class="featured featured--org"><svg><use href="#i-building"/></svg>{{ item.workspace.name }}</span>
+          {% elif not item.is_public %}<span class="badge">Privado</span>{% endif %}
+        </div>
+        <h1 class="page-title">{{ item.name }}</h1>
+        <p class="detail-meta">
+          {% if item.is_official %}<svg class="verified"><use href="#i-verified"/></svg>{% endif %}{{ item.author }}
+          <span class="dot">·</span><span class="mono">{{ item.slug }}</span>
+          <span class="dot">·</span>v{{ shown_version }}
+          {% if item.install_count %}<span class="dot">·</span>{{ item.install_count }} instalaç{{ item.install_count|pluralize:"ão,ões" }}{% endif %}
+          {% if item.rating_count %}<span class="dot">·</span><span class="rating-inline"><svg><use href="#i-star"/></svg>{{ item.rating_avg|floatformat:1 }} ({{ item.rating_count }})</span>{% endif %}
+        </p>
+        <p class="detail-summary">{{ item.summary }}</p>
+      </div>
+      <div class="detail-actions">
+        {% if can_edit %}
+          <a class="btn btn-primary" href="{% url 'marketplace:item_edit' item.id %}"><svg><use href="#i-pencil"/></svg><span>Abrir no editor</span></a>
+        {% elif is_owner %}
+          <span class="badge badge--mine">Criado neste workspace</span>
+        {% elif installation %}
+          {% if installation.update_available and membership.is_admin %}
+          <button class="btn btn-ghost" data-upgrade="{{ item.id }}"><svg><use href="#i-refresh"/></svg><span>Atualizar para v{{ installation.available_version }}</span></button>
+          {% endif %}
+          <button class="btn btn-installed" data-install="{{ item.id }}" data-installed="true" {% if not membership.is_admin %}disabled title="Só admins removem itens"{% endif %}><svg><use href="#i-check"/></svg><span>Instalado</span></button>
+        {% else %}
+          <button class="btn btn-primary" data-install="{{ item.id }}" data-installed="false" {% if not membership.is_admin %}disabled title="Só admins do workspace instalam itens"{% endif %}><svg><use href="#i-download"/></svg><span>Instalar em {{ workspace.name|truncatechars:20 }}</span></button>
+        {% endif %}
+      </div>
+    </section>
+
+    {% if reviewing %}
+    <section class="panel notice notice--info">
+      <svg><use href="#i-shield"/></svg>
+      <p><strong>Você está revisando a v{{ reviewing.version }}</strong>, enviada por {{ reviewing.requested_by.full_name|default:"—" }}. O conteúdo abaixo é exatamente o que será publicado. Decida na <a class="link" href="{% url 'marketplace:review_queue' %}">fila de revisão</a>.</p>
+    </section>
+    {% elif installation and installation.installed_version != shown_version %}
+    <section class="panel notice notice--info">
+      <svg><use href="#i-refresh"/></svg>
+      <p>Este workspace usa a <strong>v{{ installation.installed_version }}</strong>. Abaixo está a v{{ shown_version }}, disponível para atualizar.</p>
+    </section>
+    {% endif %}
+
+    <div class="detail-grid">
+      <div class="detail-main">
+        <section class="panel">
+          <h2 class="panel-title">Sobre</h2>
+          <p class="prose-text">{{ item.description|linebreaksbr }}</p>
+        </section>
+
+        {% if item.kind == "tool" %}
+        <section class="panel">
+          <h2 class="panel-title">Parâmetros de entrada</h2>
+          {% if params %}
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Nome</th><th>Tipo</th><th>Descrição</th></tr></thead>
+              <tbody>
+              {% for p in params %}
+                <tr>
+                  <td><code>{{ p.name }}</code>{% if p.required %} <span class="req">obrigatório</span>{% endif %}</td>
+                  <td><span class="type-pill">{{ p.type }}</span></td>
+                  <td>{{ p.description }}{% if p.enum %}<div class="enum">{% for v in p.enum %}<code>{{ v }}</code>{% endfor %}</div>{% endif %}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}<p class="muted">Sem parâmetros.</p>{% endif %}
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Implementação</h2>
+            <span class="mono muted">{{ manifest.runtime }} · {{ manifest.entrypoint }}()</span>
+          </div>
+          <div class="code-block"><div class="code-head"><span>python</span><button class="code-copy" data-copy-target="#tool-code"><svg><use href="#i-copy"/></svg><span>Copiar</span></button></div><pre><code id="tool-code" class="language-python">{{ manifest.code }}</code></pre></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Definição para agentes</h2>
+            <span class="muted">formato tool use</span>
+          </div>
+          <div class="code-block"><div class="code-head"><span>json</span><button class="code-copy" data-copy-target="#tool-definition"><svg><use href="#i-copy"/></svg><span>Copiar</span></button></div><pre><code id="tool-definition" class="language-json">{{ definition }}</code></pre></div>
+        </section>
+        {% elif item.kind == "agent" %}
+        <section class="panel">
+          <h2 class="panel-title">Instruções do agente</h2>
+          <pre class="pre-text">{{ manifest.system_prompt }}</pre>
+        </section>
+        <section class="panel">
+          <h2 class="panel-title">Ferramentas usadas</h2>
+          {% if manifest.tools %}
+          <div class="tags">{% for t in manifest.tools %}<span class="tag mono">{{ t }}</span>{% endfor %}</div>
+          {% else %}<p class="muted">Nenhuma ferramenta.</p>{% endif %}
+        </section>
+        {% elif item.kind == "workflow" %}
+        <section class="panel">
+          <h2 class="panel-title">Etapas</h2>
+          <p class="muted">Gatilho: {{ manifest.trigger }}</p>
+          <ol class="timeline">
+            {% for step in manifest.steps %}
+            <li><strong>{{ step.name }}</strong><span class="mono">{{ step.uses }}</span></li>
+            {% endfor %}
+          </ol>
+        </section>
+        {% elif item.kind == "skill" %}
+        <section class="panel">
+          <h2 class="panel-title">Instruções</h2>
+          <pre class="pre-text">{{ manifest.instructions }}</pre>
+        </section>
+        {% endif %}
+
+        <section class="panel" id="reviews">
+          <div class="panel-head">
+            <h2 class="panel-title">Avaliações</h2>
+            {% if item.rating_count %}
+            <span class="rating-inline"><svg><use href="#i-star"/></svg><strong>{{ item.rating_avg|floatformat:1 }}</strong> · {{ item.rating_count }} avaliaç{{ item.rating_count|pluralize:"ão,ões" }}</span>
+            {% endif %}
+          </div>
+
+          {% if can_review %}
+          <form class="review-form" id="review-form" data-item="{{ item.id }}" data-rating="{{ my_review.rating|default:0 }}">
+            <div class="stars-input" role="radiogroup" aria-label="Sua nota">
+              {% for n in stars %}<button type="button" class="star" data-star="{{ n }}" role="radio" aria-label="{{ n }} estrela{{ n|pluralize }}"><svg><use href="#i-star"/></svg></button>{% endfor %}
+              <span class="stars-hint">{% if my_review %}Sua avaliação{% else %}Dê sua nota{% endif %}</span>
+            </div>
+            <textarea class="input" id="review-comment" rows="2" maxlength="1000" placeholder="Conte como foi usar (opcional)">{{ my_review.comment }}</textarea>
+            <div class="form-actions">
+              {% if my_review %}<button class="btn btn-sm btn-ghost btn-danger-ghost" type="button" data-review="delete">Remover</button>{% endif %}
+              <button class="btn btn-sm btn-primary" type="submit">{% if my_review %}Atualizar avaliação{% else %}Enviar avaliação{% endif %}</button>
+            </div>
+          </form>
+          {% elif is_owner %}
+          <p class="muted review-note">Você é o autor deste item.</p>
+          {% else %}
+          <p class="muted review-note">Instale o item para poder avaliar.</p>
+          {% endif %}
+
+          {% if reviews %}
+          <ul class="reviews">
+            {% for r in reviews %}
+            <li class="review">
+              <span class="avatar">{{ r.user.initials }}</span>
+              <div class="review-body">
+                <p class="review-head">
+                  <strong>{{ r.user.full_name }}</strong>
+                  <span class="stars" aria-label="{{ r.rating }} de 5">{% for n in stars %}<svg class="{% if n <= r.rating %}is-on{% endif %}"><use href="#i-star"/></svg>{% endfor %}</span>
+                  <span class="muted">{{ r.updated_at|date:"d/m/Y" }}</span>
+                </p>
+                {% if r.comment %}<p class="review-text">{{ r.comment|linebreaksbr }}</p>{% endif %}
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="muted review-note">Ainda não há avaliações.</p>
+          {% endif %}
+        </section>
+      </div>
+
+      <aside class="detail-side">
+        <section class="panel">
+          <h2 class="panel-title">Detalhes</h2>
+          <dl class="meta-list">
+            <dt>Tipo</dt><dd>{{ item.get_kind_display }}</dd>
+            <dt>Versão</dt><dd>{{ shown_version }}</dd>
+            <dt>Autor</dt><dd>{{ item.author }}</dd>
+            {% if item.kind == "agent" %}<dt>Modelo</dt><dd class="mono">{{ manifest.model }}</dd>{% endif %}
+            <dt>Categoria</dt><dd>{{ item.get_category_display }}</dd>
+            <dt>Atualizado</dt><dd>{{ item.updated_at|date:"d/m/Y" }}</dd>
+          </dl>
+        </section>
+        {% if versions %}
+        <section class="panel">
+          <h2 class="panel-title">Histórico de versões</h2>
+          <ol class="versions">
+            {% for v in versions %}
+            <li>
+              <span class="mono">v{{ v.version }}</span>
+              <span class="muted">{{ v.created_at|date:"d/m/Y" }}</span>
+              <p>{{ v.changelog }}</p>
+            </li>
+            {% endfor %}
+          </ol>
+        </section>
+        {% endif %}
+        {% if item.kind == "tool" %}
+        <section class="panel">
+          <h2 class="panel-title">Permissões</h2>
+          {% if permissions %}
+          <div class="tags">{% for p in permissions %}<span class="perm"><svg><use href="#i-alert"/></svg>{{ p }}</span>{% endfor %}</div>
+          {% else %}
+          <p class="ok-line"><svg><use href="#i-shield"/></svg>Nenhuma permissão especial — roda isolada.</p>
+          {% endif %}
+        </section>
+        {% if tool_secrets %}
+        <section class="panel">
+          <h2 class="panel-title">Segredos necessários</h2>
+          <div class="tags">
+            {% for s in tool_secrets %}
+            <span class="perm{% if s.configured %} perm--ok{% endif %}"><svg><use href="#{% if s.configured %}i-lock{% else %}i-alert{% endif %}"/></svg>{{ s.name }}</span>
+            {% endfor %}
+          </div>
+          <p class="field-help">Os valores ficam no <a class="link" href="{% url 'workspaces:secrets' %}">cofre</a> de cada workspace — o autor da ferramenta nunca os vê.</p>
+        </section>
+        {% endif %}
+        {% endif %}
+        {% if item.tags %}
+        <section class="panel">
+          <h2 class="panel-title">Tags</h2>
+          <div class="tags">{% for tag in item.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
+        </section>
+        {% endif %}
+      </aside>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="{% static 'marketplace/js/marketplace.js' %}?v=8"></script>
+{% endblock %}
